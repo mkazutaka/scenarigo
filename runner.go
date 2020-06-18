@@ -134,6 +134,23 @@ func newYAMLNode(path string, docIdx int) (ast.Node, error) {
 
 // Run runs all tests.
 func (r *Runner) Run(ctx *context.Context) {
+	r.run(ctx, func(ctx *context.Context, scn *schema.Scenario) {
+		ctx.Reporter().Parallel()
+		_ = runScenario(ctx, scn)
+	})
+}
+
+func (r *Runner) Validate(ctx *context.Context) {
+	r.run(ctx, func(ctx *context.Context, scn *schema.Scenario) {
+		for _, step := range scn.Steps {
+			if _, err := loadInclude(step.Include); err != nil {
+				ctx.Reporter().Fatal(err)
+			}
+		}
+	})
+}
+
+func (r *Runner) run(ctx *context.Context, fn func(*context.Context, *schema.Scenario)) {
 	if r.pluginDir != nil {
 		ctx = ctx.WithPluginDir(*r.pluginDir)
 	}
@@ -151,9 +168,13 @@ func (r *Runner) Run(ctx *context.Context) {
 					ctx.Reporter().Fatalf("failed to create ast: %s", err)
 				}
 				ctx = ctx.WithNode(node)
+				for i, step := range scn.Steps {
+					if step.Include != "" {
+						scn.Steps[i].Include = filepath.Join(filepath.Dir(scn.Filepath()), step.Include)
+					}
+				}
 				ctx.Run(scn.Title, func(ctx *context.Context) {
-					ctx.Reporter().Parallel()
-					_ = runScenario(ctx, scn)
+					fn(ctx, scn)
 				})
 			}
 		})

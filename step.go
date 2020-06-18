@@ -33,19 +33,16 @@ func runStep(ctx *context.Context, s *schema.Step, stepIdx int) *context.Context
 	}
 
 	if s.Include != "" {
-		scenarios, err := schema.LoadScenarios(s.Include)
+		scenario, err := loadInclude(s.Include)
 		if err != nil {
-			ctx.Reporter().Fatalf(`failed to include "%s" as step: %s`, s.Include, err)
-		}
-		if len(scenarios) != 1 {
-			ctx.Reporter().Fatalf(`failed to include "%s" as step: must be a scenario`, s.Include)
+			ctx.Reporter().Fatal(err)
 		}
 		includeNode, err := newYAMLNode(s.Include, 0)
 		if err != nil {
 			ctx.Reporter().Fatalf(`failed to create ast: %s`, err)
 		}
 		currentNode := ctx.Node()
-		ctx = runScenario(ctx.WithNode(includeNode), scenarios[0])
+		ctx = runScenario(ctx.WithNode(includeNode), scenario)
 
 		// back node to current node
 		ctx = ctx.WithNode(currentNode)
@@ -141,4 +138,15 @@ func invokeAndAssert(ctx *context.Context, s *schema.Step, stepIdx int) *context
 
 	ctx.Reporter().FailNow()
 	return ctx
+}
+
+func loadInclude(path string) (*schema.Scenario, error) {
+	scenarios, err := schema.LoadScenarios(path)
+	if err != nil {
+		return nil, fmt.Errorf(`failed to include "%s" as step: %s`, path, err)
+	}
+	if len(scenarios) != 1 {
+		return nil, fmt.Errorf(`failed to include "%s" as step: must be a scenario`, path)
+	}
+	return scenarios[0], nil
 }
