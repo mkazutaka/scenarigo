@@ -159,3 +159,21 @@ func (r *Runner) Run(ctx *context.Context) {
 		})
 	}
 }
+
+func (r *Runner) ListScenarios(ctx *context.Context) {
+	var scenarioNames []string
+	for _, f := range r.scenarioFiles {
+		ctx.Run(f, func(ctx *context.Context) {
+			scns, err := schema.LoadScenarios(f)
+			if err != nil {
+				ctx.Reporter().Fatalf("failed to load scenarios: %s", err)
+			}
+			for _, scn := range scns {
+				ctx.Run(scn.Title, func(ctx *context.Context) {
+					scenarioNames = append(scenarioNames, ctx.Reporter().Name())
+				})
+			}
+		})
+	}
+	// print scenarioNames
+}
